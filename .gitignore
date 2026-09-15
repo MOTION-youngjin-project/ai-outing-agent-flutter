@@ -46,3 +46,8 @@ app.*.map.json
 
 # Widget Preview related
 .widget_preview/
+
+# 릴리즈 서명 키 — 절대 커밋하지 않음
+/android/key.properties
+/android/*.jks
+/android/*.keystore
