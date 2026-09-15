@@ -3,6 +3,12 @@ import 'package:webview_flutter/webview_flutter.dart';
 
 const _homeUrl = 'https://wa26bteam02.yjjob.kr';
 
+// 웹앱의 하단 네비(BottomNav.tsx) 스타일과 맞춘 색상 — src/app/globals.css의
+// --color-accent(#14b8a6) / --color-hairline(#e8ecef), 비활성 텍스트는 tailwind slate-400.
+const _navAccentColor = Color(0xFF14B8A6);
+const _navInactiveColor = Color(0xFF94A3B8);
+const _navHairlineColor = Color(0xFFE8ECEF);
+
 void main() {
   runApp(const MyApp());
 }
@@ -30,7 +36,7 @@ class _Tab {
 
 const _tabs = [
   _Tab('chat', '챗', Icons.chat_bubble_outline),
-  _Tab('map', '지도', Icons.map_outlined),
+  _Tab('map', '지도', Icons.location_on_outlined),
   _Tab('saved', '저장', Icons.bookmark_border),
   _Tab('mypage', '마이', Icons.person_outline),
 ];
@@ -106,14 +112,33 @@ class _HomeShellState extends State<HomeShell> {
       },
       child: Scaffold(
         body: SafeArea(child: WebViewWidget(controller: _controller)),
-        bottomNavigationBar: BottomNavigationBar(
-          currentIndex: _currentIndex,
-          onTap: _onTabTapped,
-          type: BottomNavigationBarType.fixed,
-          items: [
-            for (final tab in _tabs)
-              BottomNavigationBarItem(icon: Icon(tab.icon), label: tab.label),
-          ],
+        bottomNavigationBar: Container(
+          decoration: const BoxDecoration(
+            color: Color(0xF2FFFFFF),
+            border: Border(top: BorderSide(color: _navHairlineColor)),
+          ),
+          child: BottomNavigationBar(
+            currentIndex: _currentIndex,
+            onTap: _onTabTapped,
+            type: BottomNavigationBarType.fixed,
+            backgroundColor: Colors.transparent,
+            elevation: 0,
+            iconSize: 22,
+            selectedItemColor: _navAccentColor,
+            unselectedItemColor: _navInactiveColor,
+            selectedLabelStyle: const TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+            ),
+            unselectedLabelStyle: const TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+            ),
+            items: [
+              for (final tab in _tabs)
+                BottomNavigationBarItem(icon: Icon(tab.icon), label: tab.label),
+            ],
+          ),
         ),
       ),
     );
