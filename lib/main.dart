@@ -30,19 +30,18 @@ class MyApp extends StatelessWidget {
 enum _NavShape { chat, map, saved, mypage }
 
 class _Tab {
-  const _Tab(this.key, this.label, this.shape, {this.hasSpark = false});
+  const _Tab(this.key, this.label, this.shape);
 
   final String key;
   final String label;
   final _NavShape shape;
-  final bool hasSpark;
 }
 
 const _tabs = [
-  _Tab('chat', '챗', _NavShape.chat, hasSpark: true),
+  _Tab('chat', '챗', _NavShape.chat),
   _Tab('map', '지도', _NavShape.map),
   _Tab('saved', '저장', _NavShape.saved),
-  _Tab('mypage', '마이', _NavShape.mypage, hasSpark: true),
+  _Tab('mypage', '마이', _NavShape.mypage),
 ];
 
 class HomeShell extends StatefulWidget {
@@ -55,12 +54,23 @@ class HomeShell extends StatefulWidget {
 class _HomeShellState extends State<HomeShell> {
   late final WebViewController _controller;
   int _currentIndex = 0;
+  // 챗 탭이 아닐 때 새 답변이 도착하면(웹의 NativeChatBridge.postMessage 신호) true —
+  // 챗 탭으로 돌아오면 다시 false.
+  bool _chatUnread = false;
 
   @override
   void initState() {
     super.initState();
     _controller = WebViewController()
-      ..setJavaScriptMode(JavaScriptMode.unrestricted);
+      ..setJavaScriptMode(JavaScriptMode.unrestricted)
+      ..addJavaScriptChannel(
+        'NativeChatBridge',
+        onMessageReceived: (message) {
+          if (_currentIndex != 0) {
+            setState(() => _chatUnread = true);
+          }
+        },
+      );
     _controller.getUserAgent().then((ua) {
       _controller
         ..setUserAgent('$ua NadeulPlanApp/1.0')
@@ -69,7 +79,10 @@ class _HomeShellState extends State<HomeShell> {
   }
 
   void _onTabTapped(int index) {
-    setState(() => _currentIndex = index);
+    setState(() {
+      _currentIndex = index;
+      if (index == 0) _chatUnread = false;
+    });
     final tabKey = _tabs[index].key;
     _controller.runJavaScript(
       "window.dispatchEvent(new CustomEvent('native-tab', { detail: '$tabKey' }))",
@@ -132,6 +145,7 @@ class _HomeShellState extends State<HomeShell> {
                   child: _NavButton(
                     tab: _tabs[i],
                     selected: _currentIndex == i,
+                    showBadge: i == 0 && _chatUnread,
                     onTap: () => _onTabTapped(i),
                   ),
                 ),
@@ -147,11 +161,13 @@ class _NavButton extends StatefulWidget {
   const _NavButton({
     required this.tab,
     required this.selected,
+    required this.showBadge,
     required this.onTap,
   });
 
   final _Tab tab;
   final bool selected;
+  final bool showBadge;
   final VoidCallback onTap;
 
   @override
@@ -261,22 +277,22 @@ class _NavButtonState extends State<_NavButton>
                     ),
                   ],
                 ),
-                if (widget.tab.hasSpark)
-                  Positioned(
-                    top: 2,
-                    right: 18,
-                    child: Opacity(
-                      opacity: _fade.value,
-                      child: Container(
-                        width: 6,
-                        height: 6,
-                        decoration: const BoxDecoration(
-                          color: _navSparkColor,
-                          shape: BoxShape.circle,
-                        ),
+                Positioned(
+                  top: 2,
+                  right: 18,
+                  child: AnimatedOpacity(
+                    duration: const Duration(milliseconds: 200),
+                    opacity: widget.showBadge ? 1 : 0,
+                    child: Container(
+                      width: 6,
+                      height: 6,
+                      decoration: const BoxDecoration(
+                        color: _navSparkColor,
+                        shape: BoxShape.circle,
                       ),
                     ),
                   ),
+                ),
                 Positioned(
                   bottom: 0,
                   child: Opacity(
