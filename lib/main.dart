@@ -3,10 +3,11 @@ import 'package:webview_flutter/webview_flutter.dart';
 
 const _homeUrl = 'https://wa26bteam02.yjjob.kr';
 
-// 웹앱의 하단 네비(BottomNav.tsx) 스타일과 맞춘 색상 — src/app/globals.css의
-// --color-accent(#14b8a6) / --color-hairline(#e8ecef), 비활성 텍스트는 tailwind slate-400.
-const _navAccentColor = Color(0xFF14B8A6);
-const _navInactiveColor = Color(0xFF94A3B8);
+// C:\Users\YJ\Desktop\MOTION_하단네비_아이콘4개\*.html(디자인팀 아이콘 스펙)에서 그대로 가져온 값.
+const _navDefaultColor = Color(0xFF7E8899);
+const _navSelectedColor = Color(0xFF11B5A8);
+const _navPillColor = Color(0xFFE4F8F3);
+const _navSparkColor = Color(0xFFFFD178);
 const _navHairlineColor = Color(0xFFE8ECEF);
 
 void main() {
@@ -26,19 +27,22 @@ class MyApp extends StatelessWidget {
   }
 }
 
+enum _NavShape { chat, map, saved, mypage }
+
 class _Tab {
-  const _Tab(this.key, this.label, this.icon);
+  const _Tab(this.key, this.label, this.shape, {this.hasSpark = false});
 
   final String key;
   final String label;
-  final IconData icon;
+  final _NavShape shape;
+  final bool hasSpark;
 }
 
 const _tabs = [
-  _Tab('chat', '챗', Icons.chat_bubble_outline),
-  _Tab('map', '지도', Icons.location_on_outlined),
-  _Tab('saved', '저장', Icons.bookmark_border),
-  _Tab('mypage', '마이', Icons.person_outline),
+  _Tab('chat', '챗', _NavShape.chat, hasSpark: true),
+  _Tab('map', '지도', _NavShape.map),
+  _Tab('saved', '저장', _NavShape.saved),
+  _Tab('mypage', '마이', _NavShape.mypage, hasSpark: true),
 ];
 
 class HomeShell extends StatefulWidget {
@@ -114,29 +118,23 @@ class _HomeShellState extends State<HomeShell> {
         body: SafeArea(child: WebViewWidget(controller: _controller)),
         bottomNavigationBar: Container(
           decoration: const BoxDecoration(
-            color: Color(0xF2FFFFFF),
+            color: Colors.white,
             border: Border(top: BorderSide(color: _navHairlineColor)),
           ),
-          child: BottomNavigationBar(
-            currentIndex: _currentIndex,
-            onTap: _onTabTapped,
-            type: BottomNavigationBarType.fixed,
-            backgroundColor: Colors.transparent,
-            elevation: 0,
-            iconSize: 22,
-            selectedItemColor: _navAccentColor,
-            unselectedItemColor: _navInactiveColor,
-            selectedLabelStyle: const TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w500,
-            ),
-            unselectedLabelStyle: const TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w500,
-            ),
-            items: [
-              for (final tab in _tabs)
-                BottomNavigationBarItem(icon: Icon(tab.icon), label: tab.label),
+          padding: EdgeInsets.only(
+            top: 8,
+            bottom: 8 + MediaQuery.of(context).padding.bottom,
+          ),
+          child: Row(
+            children: [
+              for (var i = 0; i < _tabs.length; i++)
+                Expanded(
+                  child: _NavButton(
+                    tab: _tabs[i],
+                    selected: _currentIndex == i,
+                    onTap: () => _onTabTapped(i),
+                  ),
+                ),
             ],
           ),
         ),
@@ -144,3 +142,262 @@ class _HomeShellState extends State<HomeShell> {
     );
   }
 }
+
+class _NavButton extends StatefulWidget {
+  const _NavButton({
+    required this.tab,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final _Tab tab;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  State<_NavButton> createState() => _NavButtonState();
+}
+
+class _NavButtonState extends State<_NavButton>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    value: widget.selected ? 1 : 0,
+    duration: const Duration(milliseconds: 420),
+    reverseDuration: const Duration(milliseconds: 160),
+  );
+  // ponytail: 원본 디자인엔 아이콘마다 고유한 회전/이동 키프레임(말풍선 팝, 핀 바운스 등)이
+  // 있지만, easeOutBack 스케일 하나로 "통통 튀는" 느낌만 통일해서 재현함 — 4종 키프레임을
+  // 전부 손으로 옮기는 건 이 화면 규모 대비 과함. 세밀한 모션이 필요해지면 그때 개별 추가.
+  late final Animation<double> _bounce = CurvedAnimation(
+    parent: _controller,
+    curve: Curves.easeOutBack,
+    reverseCurve: Curves.easeOut,
+  );
+  late final Animation<double> _fade = CurvedAnimation(
+    parent: _controller,
+    curve: const Interval(0, 0.6, curve: Curves.easeOut),
+    reverseCurve: const Interval(0, 1, curve: Curves.easeIn),
+  );
+
+  @override
+  void didUpdateWidget(covariant _NavButton oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.selected && !oldWidget.selected) {
+      _controller.forward(from: 0);
+    } else if (!widget.selected && oldWidget.selected) {
+      _controller.reverse(from: 1);
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: widget.onTap,
+      child: AnimatedBuilder(
+        animation: _controller,
+        builder: (context, child) {
+          final t = _controller.value;
+          final color = Color.lerp(_navDefaultColor, _navSelectedColor, t)!;
+          return SizedBox(
+            height: 58,
+            child: Stack(
+              alignment: Alignment.topCenter,
+              clipBehavior: Clip.none,
+              children: [
+                Positioned(
+                  top: 0,
+                  child: Opacity(
+                    opacity: _fade.value,
+                    child: Transform.scale(
+                      scale: 0.75 + 0.25 * _fade.value,
+                      child: Container(
+                        width: 44,
+                        height: 36,
+                        decoration: BoxDecoration(
+                          color: _navPillColor,
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const SizedBox(height: 5),
+                    Transform.scale(
+                      scale: 0.85 + 0.15 * _bounce.value,
+                      child: SizedBox(
+                        width: 28,
+                        height: 28,
+                        child: CustomPaint(
+                          painter: _NavIconPainter(
+                            shape: widget.tab.shape,
+                            color: color,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      widget.tab.label,
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: color,
+                        fontWeight: FontWeight.lerp(
+                          FontWeight.w500,
+                          FontWeight.w700,
+                          t,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                if (widget.tab.hasSpark)
+                  Positioned(
+                    top: 2,
+                    right: 18,
+                    child: Opacity(
+                      opacity: _fade.value,
+                      child: Container(
+                        width: 6,
+                        height: 6,
+                        decoration: const BoxDecoration(
+                          color: _navSparkColor,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                    ),
+                  ),
+                Positioned(
+                  bottom: 0,
+                  child: Opacity(
+                    opacity: _fade.value,
+                    child: Container(
+                      width: 4,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: color,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+// C:\Users\YJ\Desktop\MOTION_하단네비_아이콘4개\*.html의 <svg viewBox="0 0 32 32"> path를
+// 그대로 옮긴 것(테두리색은 currentColor→color, 흰 디테일은 white 그대로).
+class _NavIconPainter extends CustomPainter {
+  const _NavIconPainter({required this.shape, required this.color});
+
+  final _NavShape shape;
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    canvas.save();
+    canvas.scale(size.width / 32, size.height / 32);
+    final fill = Paint()..color = color;
+    final white = Paint()..color = Colors.white;
+    switch (shape) {
+      case _NavShape.chat:
+        canvas.drawPath(_chatOutline, fill);
+        canvas.drawOval(
+          Rect.fromCenter(center: const Offset(16, 14), width: 10, height: 12),
+          white,
+        );
+        canvas.drawPath(_chatTail, white);
+      case _NavShape.map:
+        canvas.drawPath(_mapOutline, fill);
+        canvas.drawCircle(const Offset(16, 13), 4.5, white);
+      case _NavShape.saved:
+        canvas.drawPath(_savedOutline, fill);
+        canvas.drawPath(
+          _savedCheck,
+          Paint()
+            ..color = Colors.white
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 2.6
+            ..strokeCap = StrokeCap.round
+            ..strokeJoin = StrokeJoin.round,
+        );
+      case _NavShape.mypage:
+        canvas.drawCircle(const Offset(16, 16), 14, fill);
+        canvas.drawCircle(const Offset(16, 11), 4, white);
+        canvas.drawPath(_mypageBody, white);
+    }
+    canvas.restore();
+  }
+
+  @override
+  bool shouldRepaint(covariant _NavIconPainter oldDelegate) =>
+      oldDelegate.color != color || oldDelegate.shape != shape;
+}
+
+final Path _chatOutline = Path()
+  ..moveTo(10, 3)
+  ..lineTo(22, 3)
+  ..arcToPoint(const Offset(29, 10), radius: const Radius.circular(7), clockwise: true)
+  ..lineTo(29, 21)
+  ..arcToPoint(const Offset(23, 27), radius: const Radius.circular(6), clockwise: true)
+  ..lineTo(21, 27)
+  ..lineTo(16, 31)
+  ..lineTo(16, 27)
+  ..lineTo(10, 27)
+  ..arcToPoint(const Offset(3, 20), radius: const Radius.circular(7), clockwise: true)
+  ..lineTo(3, 10)
+  ..arcToPoint(const Offset(10, 3), radius: const Radius.circular(7), clockwise: true)
+  ..close();
+
+final Path _chatTail = Path()
+  ..moveTo(17, 18)
+  ..lineTo(21, 23)
+  ..lineTo(21, 15)
+  ..close();
+
+final Path _mapOutline = Path()
+  ..moveTo(16, 2)
+  ..cubicTo(8, 2, 3, 7, 3, 14)
+  ..cubicTo(3, 22, 13, 30, 16, 32)
+  ..cubicTo(19, 30, 29, 22, 29, 14)
+  ..cubicTo(29, 7, 24, 2, 16, 2)
+  ..close();
+
+final Path _savedOutline = Path()
+  ..moveTo(16, 2)
+  ..lineTo(26, 6)
+  ..arcToPoint(const Offset(28, 10), radius: const Radius.circular(4), clockwise: true)
+  ..lineTo(28, 22)
+  ..lineTo(16, 31)
+  ..lineTo(4, 22)
+  ..lineTo(4, 10)
+  ..arcToPoint(const Offset(6, 6), radius: const Radius.circular(4), clockwise: true)
+  ..close();
+
+final Path _savedCheck = Path()
+  ..moveTo(10, 15)
+  ..lineTo(14, 19)
+  ..lineTo(22, 10);
+
+final Path _mypageBody = Path()
+  ..moveTo(9, 25)
+  ..lineTo(9, 22)
+  ..arcToPoint(const Offset(23, 22), radius: const Radius.circular(7), clockwise: true)
+  ..lineTo(23, 25)
+  ..arcToPoint(const Offset(9, 25), radius: const Radius.circular(14), clockwise: true)
+  ..close();
