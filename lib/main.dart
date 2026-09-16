@@ -57,6 +57,10 @@ class _HomeShellState extends State<HomeShell> {
   // 챗 탭이 아닐 때 새 답변이 도착하면(웹의 NativeChatBridge.postMessage 신호) true —
   // 챗 탭으로 돌아오면 다시 false.
   bool _chatUnread = false;
+  // 웹뷰가 서버에 도달 못 하면(오프라인 등) 흰 화면 대신 네이티브 안내를 덮어씀.
+  // 이 앱의 모든 탭(챗/지도/저장/마이)이 백엔드 필수라 오프라인에서 의미 있게
+  // 대체 표시할 콘텐츠가 없으므로, 네이티브로 만들 가치가 있는 건 이 폴백 화면뿐.
+  bool _loadFailed = false;
 
   @override
   void initState() {
@@ -70,12 +74,27 @@ class _HomeShellState extends State<HomeShell> {
             setState(() => _chatUnread = true);
           }
         },
+      )
+      ..setNavigationDelegate(
+        NavigationDelegate(
+          onPageStarted: (_) => setState(() => _loadFailed = false),
+          onWebResourceError: (error) {
+            if (error.isForMainFrame ?? true) {
+              setState(() => _loadFailed = true);
+            }
+          },
+        ),
       );
     _controller.getUserAgent().then((ua) {
       _controller
         ..setUserAgent('$ua NadeulPlanApp/1.0')
         ..loadRequest(Uri.parse(_homeUrl));
     });
+  }
+
+  void _retry() {
+    setState(() => _loadFailed = false);
+    _controller.loadRequest(Uri.parse(_homeUrl));
   }
 
   void _onTabTapped(int index) {
@@ -128,7 +147,14 @@ class _HomeShellState extends State<HomeShell> {
         }
       },
       child: Scaffold(
-        body: SafeArea(child: WebViewWidget(controller: _controller)),
+        body: SafeArea(
+          child: Stack(
+            children: [
+              WebViewWidget(controller: _controller),
+              if (_loadFailed) _OfflineFallback(onRetry: _retry),
+            ],
+          ),
+        ),
         bottomNavigationBar: Container(
           decoration: const BoxDecoration(
             color: Colors.white,
@@ -152,6 +178,37 @@ class _HomeShellState extends State<HomeShell> {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _OfflineFallback extends StatelessWidget {
+  const _OfflineFallback({required this.onRetry});
+
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: Colors.white,
+      alignment: Alignment.center,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.wifi_off_rounded, size: 48, color: _navDefaultColor),
+          const SizedBox(height: 16),
+          const Text(
+            '인터넷 연결을 확인해주세요',
+            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 20),
+          FilledButton(
+            onPressed: onRetry,
+            style: FilledButton.styleFrom(backgroundColor: _navSelectedColor),
+            child: const Text('다시 시도'),
+          ),
+        ],
       ),
     );
   }
