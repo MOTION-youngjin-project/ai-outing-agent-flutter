@@ -1,5 +1,5 @@
-name: app
-description: "A new Flutter project."
+name: nadeulplan
+description: "나들플랜 — 대구 가족 나들이 추천 웹앱을 감싸는 안드로이드 앱 셸."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
@@ -35,6 +35,9 @@ dependencies:
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
   webview_flutter: ^4.14.1
+  webview_flutter_android: ^4.14.1
+  permission_handler: ^11.3.0
+  url_launcher: ^6.3.2
 
 dev_dependencies:
   flutter_test:

@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:webview_flutter/webview_flutter.dart';
+import 'package:webview_flutter_android/webview_flutter_android.dart';
 
 const _homeUrl = 'https://wa26bteam02.yjjob.kr';
 
@@ -83,8 +86,37 @@ class _HomeShellState extends State<HomeShell> {
               setState(() => _loadFailed = true);
             }
           },
+          // Next.js router.push/replace(SPA 라우팅)는 페이지를 새로 안 불러오므로
+          // onPageFinished가 안 뜬다 — 웹의 자체 네비게이션(예: 마이페이지에서
+          // "저장"으로 이동)을 타면 탭바 표시가 안 따라가던 원인. onUrlChange는
+          // History API 변경도 잡아서 여기서 탭 표시를 다시 맞춘다.
+          onUrlChange: (change) => _syncTabWithPath(change.url),
+          onPageFinished: (url) => _syncTabWithPath(url),
+          // 네이버 길찾기(intent://), 카카오맵 앱(kakaomap://) 같은 http(s)가 아닌
+          // 스킴은 WebView가 직접 못 열고 ERR_UNKNOWN_URL_SCHEME으로 실패한다 —
+          // 그러면 onWebResourceError를 타서 인터넷은 멀쩡한데 오프라인 화면이
+          // 뜬다. http(s)가 아니면 WebView 진행을 막고 OS에 위임한다(설치 앱
+          // 실행 또는 intent의 browser_fallback_url로 스토어 이동).
+          onNavigationRequest: (request) async {
+            final uri = Uri.tryParse(request.url);
+            if (uri != null && uri.scheme != 'http' && uri.scheme != 'https') {
+              await launchUrl(uri, mode: LaunchMode.externalApplication);
+              return NavigationDecision.prevent;
+            }
+            return NavigationDecision.navigate;
+          },
         ),
       );
+    final androidController = _controller.platform;
+    if (androidController is AndroidWebViewController) {
+      androidController.setGeolocationPermissionsPromptCallbacks(
+        onShowPrompt: (request) async {
+          var status = await Permission.locationWhenInUse.status;
+          if (!status.isGranted) status = await Permission.locationWhenInUse.request();
+          return GeolocationPermissionsResponse(allow: status.isGranted, retain: true);
+        },
+      );
+    }
     _controller.getUserAgent().then((ua) {
       _controller
         ..setUserAgent('$ua NadeulPlanApp/1.0')
@@ -95,6 +127,30 @@ class _HomeShellState extends State<HomeShell> {
   void _retry() {
     setState(() => _loadFailed = false);
     _controller.loadRequest(Uri.parse(_homeUrl));
+  }
+
+  // 웹의 BottomNav.tsx가 쓰는 경로 규칙과 동일하게 맞춘다(/recommend, /place는
+  // 챗 탭으로 묶임, /mypage는 정확히 일치해야 함) — 규칙이 바뀌면 이쪽도 같이 바꿀 것.
+  void _syncTabWithPath(String? url) {
+    final path = url == null ? null : Uri.tryParse(url)?.path;
+    if (path == null) return;
+    final int index;
+    if (path == '/' || path.startsWith('/recommend') || path.startsWith('/place')) {
+      index = 0;
+    } else if (path.startsWith('/map')) {
+      index = 1;
+    } else if (path.startsWith('/saved')) {
+      index = 2;
+    } else if (path == '/mypage') {
+      index = 3;
+    } else {
+      return;
+    }
+    if (index == _currentIndex) return;
+    setState(() {
+      _currentIndex = index;
+      if (index == 0) _chatUnread = false;
+    });
   }
 
   void _onTabTapped(int index) {

@@ -56,7 +56,9 @@ android {
                 signingConfigs.getByName("release")
             } else {
                 // key.properties가 없는 환경(CI/다른 팀원)에서는 debug 키로 폴백해서
-                // 빌드 자체는 깨지지 않게 함 — 실제 배포용 appbundle엔 안 씀.
+                // 빌드 자체는 깨지지 않게 함 — 실제 배포용 appbundle엔 안 씀. 조용히
+                // 넘어가면 그 사실을 놓치기 쉬워서 눈에 띄게 경고만 남긴다.
+                logger.warn("[nadeulplan] key.properties 없음 — release가 debug 서명으로 빌드됩니다. 이 결과물은 Play 스토어에 업로드할 수 없습니다.")
                 signingConfigs.getByName("debug")
             }
         }
