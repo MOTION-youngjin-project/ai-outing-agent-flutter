@@ -32,19 +32,13 @@ class MyApp extends StatelessWidget {
 
 enum _NavShape { chat, map, saved, mypage }
 
-class _Tab {
-  const _Tab(this.key, this.label, this.shape);
+typedef _Tab = ({String key, String label, _NavShape shape});
 
-  final String key;
-  final String label;
-  final _NavShape shape;
-}
-
-const _tabs = [
-  _Tab('chat', '챗', _NavShape.chat),
-  _Tab('map', '지도', _NavShape.map),
-  _Tab('saved', '저장', _NavShape.saved),
-  _Tab('mypage', '마이', _NavShape.mypage),
+const _tabs = <_Tab>[
+  (key: 'chat', label: '챗', shape: _NavShape.chat),
+  (key: 'map', label: '지도', shape: _NavShape.map),
+  (key: 'saved', label: '저장', shape: _NavShape.saved),
+  (key: 'mypage', label: '마이', shape: _NavShape.mypage),
 ];
 
 class HomeShell extends StatefulWidget {
