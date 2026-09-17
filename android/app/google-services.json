@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "274443343882",
+    "project_id": "ai-outing-agent",
+    "storage_bucket": "ai-outing-agent.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:274443343882:android:2fa2180aa62c15458f67f3",
+        "android_client_info": {
+          "package_name": "kr.nadeulplan.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCCuQtG96aNTMAqlU117kcSXVpaA8pf9VQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -1,10 +1,17 @@
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:webview_flutter_android/webview_flutter_android.dart';
 
+import 'firebase_options.dart';
+
 const _homeUrl = 'https://wa26bteam02.yjjob.kr';
+// FCM 토픽 브로드캐스트(공지/광고) 전용 — 백엔드에 비동기 이벤트가 없어서
+// 챗 응답 완료 등 개인화 푸시는 이 토픽 구독만으로는 불가능(핸드오프 §3 참고).
+const _announcementsTopic = 'announcements';
 
 // C:\Users\YJ\Desktop\MOTION_하단네비_아이콘4개\*.html(디자인팀 아이콘 스펙)에서 그대로 가져온 값.
 const _navDefaultColor = Color(0xFF7E8899);
@@ -13,7 +20,9 @@ const _navPillColor = Color(0xFFE4F8F3);
 const _navSparkColor = Color(0xFFFFD178);
 const _navHairlineColor = Color(0xFFE8ECEF);
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   runApp(const MyApp());
 }
 
@@ -62,6 +71,7 @@ class _HomeShellState extends State<HomeShell> {
   @override
   void initState() {
     super.initState();
+    _initPushNotifications();
     _controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..addJavaScriptChannel(
@@ -115,6 +125,19 @@ class _HomeShellState extends State<HomeShell> {
       _controller
         ..setUserAgent('$ua NadeulPlanApp/1.0')
         ..loadRequest(Uri.parse(_homeUrl));
+    });
+  }
+
+  // Android 13+는 알림 표시에 런타임 권한이 필요함. 토픽만 구독해두면
+  // Firebase 콘솔에서 메시지 작성 → 전송만으로 앱 코드 변경 없이 공지
+  // 발송 가능(핸드오프 §3).
+  Future<void> _initPushNotifications() async {
+    await Permission.notification.request();
+    await FirebaseMessaging.instance.subscribeToTopic(_announcementsTopic);
+    FirebaseMessaging.onMessage.listen((message) {
+      final text = message.notification?.title ?? message.notification?.body;
+      if (text == null || !mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
     });
   }
 
