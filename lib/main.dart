@@ -107,6 +107,15 @@ class _HomeShellState extends State<HomeShell> {
               await launchUrl(uri, mode: LaunchMode.externalApplication);
               return NavigationDecision.prevent;
             }
+            // 결제(토스페이먼츠 카드 등록/충전)는 Google Play 인앱결제 정책상
+            // 앱 안에서 노출하면 안 됨 — /billing 이동은 시스템 브라우저로
+            // 위임한다. SPA 클라이언트 라우팅(router.push)은 이 델리게이트
+            // 자체를 안 타므로 별도 방어선(웹 쪽 User-Agent 분기로 진입점
+            // 숨김)이 반드시 같이 있어야 한다.
+            if (uri != null && uri.path.startsWith('/billing')) {
+              await launchUrl(uri, mode: LaunchMode.externalApplication);
+              return NavigationDecision.prevent;
+            }
             return NavigationDecision.navigate;
           },
         ),
