@@ -1,6 +1,7 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:webview_flutter/webview_flutter.dart';
@@ -13,6 +14,9 @@ const _homeUrl = 'https://wa26bteam02.yjjob.kr';
 // 챗 응답 완료 등 개인화 푸시는 이 토픽 구독만으로는 불가능(핸드오프 §3 참고).
 const _announcementsTopic = 'announcements';
 
+// AdMob 나들플랜(Android) 리워드 광고 단위 — 시청 1회 = 질문권 1개.
+const _rewardedAdUnitId = 'ca-app-pub-5838773209152975/1054847702';
+
 // C:\Users\YJ\Desktop\MOTION_하단네비_아이콘4개\*.html(디자인팀 아이콘 스펙)에서 그대로 가져온 값.
 const _navDefaultColor = Color(0xFF7E8899);
 const _navSelectedColor = Color(0xFF11B5A8);
@@ -23,6 +27,7 @@ const _navHairlineColor = Color(0xFFE8ECEF);
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  MobileAds.instance.initialize();
   runApp(const MyApp());
 }
 
@@ -81,6 +86,10 @@ class _HomeShellState extends State<HomeShell> {
             setState(() => _chatUnread = true);
           }
         },
+      )
+      ..addJavaScriptChannel(
+        'NativeAdBridge',
+        onMessageReceived: (message) => _showRewardedAd(),
       )
       ..setNavigationDelegate(
         NavigationDelegate(
@@ -148,6 +157,34 @@ class _HomeShellState extends State<HomeShell> {
       if (text == null || !mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
     });
+  }
+
+  // 웹의 "광고 보고 질문권 받기" 버튼이 NativeAdBridge.postMessage(...)로 호출.
+  // 리워드 지급은 웹뷰 세션 쿠키를 그대로 쓰는 웹 API(POST /api/ads/reward)가
+  // 처리하므로, 네이티브는 시청 완료 신호만 웹으로 돌려준다.
+  // ponytail: 서버 측 검증(SSV) 없이 클라이언트 자기신고 — 웹 /api/ads/reward도
+  // 동일 구조라 그쪽이 강화되면 여기도 자동으로 같이 신뢰도가 올라감.
+  void _showRewardedAd() {
+    RewardedAd.load(
+      adUnitId: _rewardedAdUnitId,
+      request: const AdRequest(),
+      rewardedAdLoadCallback: RewardedAdLoadCallback(
+        onAdLoaded: (ad) {
+          ad.fullScreenContentCallback = FullScreenContentCallback(
+            onAdDismissedFullScreenContent: (ad) => ad.dispose(),
+            onAdFailedToShowFullScreenContent: (ad, error) => ad.dispose(),
+          );
+          ad.show(
+            onUserEarnedReward: (ad, reward) {
+              _controller.runJavaScript(
+                "fetch('/api/ads/reward', { method: 'POST', credentials: 'include' })",
+              );
+            },
+          );
+        },
+        onAdFailedToLoad: (error) {},
+      ),
+    );
   }
 
   void _retry() {
