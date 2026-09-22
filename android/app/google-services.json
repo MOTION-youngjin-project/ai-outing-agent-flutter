@@ -7,6 +7,25 @@
   "client": [
     {
       "client_info": {
+        "mobilesdk_app_id": "1:274443343882:android:b74ac3e5a52a62c78f67f3",
+        "android_client_info": {
+          "package_name": "com.napl.nadeulplan"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCCuQtG96aNTMAqlU117kcSXVpaA8pf9VQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
         "mobilesdk_app_id": "1:274443343882:android:2fa2180aa62c15458f67f3",
         "android_client_info": {
           "package_name": "kr.nadeulplan.app"

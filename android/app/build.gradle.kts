@@ -28,8 +28,10 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "kr.nadeulplan.app"
+        // Play Console 앱 항목이 com.napl.nadeulplan으로 먼저 생성돼 있어서(변경 불가)
+        // 맞춤. namespace(kr.nadeulplan.app)는 코드/Firebase 기존 kr.nadeulplan.app
+        // 등록과 무관하게 그대로 둬도 됨 — applicationId만 실제 배포 식별자.
+        applicationId = "com.napl.nadeulplan"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
