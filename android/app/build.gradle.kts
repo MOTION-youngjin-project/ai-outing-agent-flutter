@@ -76,6 +76,17 @@ kotlin {
     }
 }
 
+configurations.all {
+    resolutionStrategy {
+        // play-services-ads-api(AdMob)가 androidx.work:work-runtime을 2.7.0으로 고정해서
+        // 물고 오는데, 그 버전(Room 2.2.5, reflection으로 _Impl 클래스를 찾음)이 R8 full
+        // mode와 안 맞아 릴리스 빌드가 시작 즉시 크래시했다(RuntimeException: Failed to
+        // create an instance of androidx.work.impl.WorkDatabase). 예전엔
+        // android.enableR8.fullMode=false로 우회했는데, 최신으로 강제 승격해서 근본 해결함.
+        force("androidx.work:work-runtime:2.11.2")
+    }
+}
+
 flutter {
     source = "../.."
 }
