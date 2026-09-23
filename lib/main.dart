@@ -89,7 +89,7 @@ class _HomeShellState extends State<HomeShell> {
       )
       ..addJavaScriptChannel(
         'NativeAdBridge',
-        onMessageReceived: (message) => _showRewardedAd(),
+        onMessageReceived: (message) => _showRewardedAd(message.message),
       )
       ..setNavigationDelegate(
         NavigationDelegate(
@@ -159,28 +159,25 @@ class _HomeShellState extends State<HomeShell> {
     });
   }
 
-  // 웹의 "광고 보고 질문권 받기" 버튼이 NativeAdBridge.postMessage(...)로 호출.
-  // 리워드 지급은 웹뷰 세션 쿠키를 그대로 쓰는 웹 API(POST /api/ads/reward)가
-  // 처리하므로, 네이티브는 시청 완료 신호만 웹으로 돌려준다.
-  // ponytail: 서버 측 검증(SSV) 없이 클라이언트 자기신고 — 웹 /api/ads/reward도
-  // 동일 구조라 그쪽이 강화되면 여기도 자동으로 같이 신뢰도가 올라감.
-  void _showRewardedAd() {
+  // 웹의 "광고 보고 질문권 받기" 버튼이 NativeAdBridge.postMessage(customData)로 호출.
+  // customData는 웹이 세션에서 만든 "user:<id>" 또는 "guest:<sessionKeyHash>" 문자열
+  // — 구글 SSV 콜백(서버 /api/ads/ssv)이 이 값으로 누구에게 크레딧을 줄지 판단하므로
+  // 앱은 그대로 실어 보내기만 한다. 지급 자체는 서버가 SSV 콜백으로 처리하니,
+  // 시청 완료 후 앱이 따로 할 일은 없다(웹의 visibilitychange 리스너가 잔액 재조회).
+  void _showRewardedAd(String customData) {
     RewardedAd.load(
       adUnitId: _rewardedAdUnitId,
       request: const AdRequest(),
       rewardedAdLoadCallback: RewardedAdLoadCallback(
         onAdLoaded: (ad) {
+          ad.setServerSideOptions(
+            ServerSideVerificationOptions(customData: customData),
+          );
           ad.fullScreenContentCallback = FullScreenContentCallback(
             onAdDismissedFullScreenContent: (ad) => ad.dispose(),
             onAdFailedToShowFullScreenContent: (ad, error) => ad.dispose(),
           );
-          ad.show(
-            onUserEarnedReward: (ad, reward) {
-              _controller.runJavaScript(
-                "fetch('/api/ads/reward', { method: 'POST', credentials: 'include' })",
-              );
-            },
-          );
+          ad.show(onUserEarnedReward: (ad, reward) {});
         },
         onAdFailedToLoad: (error) {},
       ),
