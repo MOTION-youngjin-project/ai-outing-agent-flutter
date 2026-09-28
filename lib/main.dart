@@ -294,12 +294,14 @@ class _HomeShellState extends State<HomeShell> {
         }
       },
       child: Scaffold(
-        // top: false — 웹 페이지 자체가 env(safe-area-inset-top)으로 상태바 높이를
-        // 이미 반영한다(globals.css). SafeArea가 여기서 또 상태바만큼 밀어내면
-        // 이중으로 빈 공간이 생긴다(홈 화면 상단 큰 빈 공간 버그). 웹이 상태바
-        // 영역까지 그리게 두고, 그 안에서 CSS로 정확히 한 번만 여백을 준다.
+        // top/bottom: false — 웹 페이지 자체가 env(safe-area-inset-top/bottom)으로
+        // 상태바·하단 인셋을 이미 반영한다(globals.css, InputScreen/BottomNav의
+        // safe-area 계산). SafeArea가 여기서 또 같은 인셋만큼 밀어내면 이중으로
+        // 빈 공간·겹침이 생긴다(홈 화면 상단 여백, 채팅 입력창-탭바 겹침 버그).
+        // 웹이 인셋 영역까지 그리게 두고, 그 안에서 CSS로 정확히 한 번만 반영한다.
         body: SafeArea(
           top: false,
+          bottom: false,
           child: Stack(
             children: [
               WebViewWidget(controller: _controller),
