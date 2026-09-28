@@ -72,11 +72,15 @@ class _HomeShellState extends State<HomeShell> {
   // 이 앱의 모든 탭(챗/지도/저장/마이)이 백엔드 필수라 오프라인에서 의미 있게
   // 대체 표시할 콘텐츠가 없으므로, 네이티브로 만들 가치가 있는 건 이 폴백 화면뿐.
   bool _loadFailed = false;
+  // 버튼 클릭 시점에 RewardedAd.load()를 부르면 로드 대기가 그대로 체감 지연이 된다 —
+  // 앱 시작 시(그리고 매번 다 쓴 뒤) 미리 로드해두고 클릭하면 바로 show()만 한다.
+  RewardedAd? _preloadedRewardedAd;
 
   @override
   void initState() {
     super.initState();
     _initPushNotifications();
+    _preloadRewardedAd();
     _controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..addJavaScriptChannel(
@@ -159,25 +163,52 @@ class _HomeShellState extends State<HomeShell> {
     });
   }
 
+  // 다음 클릭에 바로 보여줄 광고를 미리 받아둔다. 실패하면 조용히 넘어간다 —
+  // _showRewardedAd가 미리 받아둔 게 없으면 그때 다시 로드하는 폴백을 갖고 있다.
+  void _preloadRewardedAd() {
+    RewardedAd.load(
+      adUnitId: _rewardedAdUnitId,
+      request: const AdRequest(),
+      rewardedAdLoadCallback: RewardedAdLoadCallback(
+        onAdLoaded: (ad) => _preloadedRewardedAd = ad,
+        onAdFailedToLoad: (error) {},
+      ),
+    );
+  }
+
   // 웹의 "광고 보고 질문권 받기" 버튼이 NativeAdBridge.postMessage(customData)로 호출.
   // customData는 웹이 세션에서 만든 "user:<id>" 또는 "guest:<sessionKeyHash>" 문자열
   // — 구글 SSV 콜백(서버 /api/ads/ssv)이 이 값으로 누구에게 크레딧을 줄지 판단하므로
   // 앱은 그대로 실어 보내기만 한다. 지급 자체는 서버가 SSV 콜백으로 처리하니,
   // 시청 완료 후 앱이 따로 할 일은 없다(웹의 visibilitychange 리스너가 잔액 재조회).
   void _showRewardedAd(String customData) {
+    void showLoaded(RewardedAd ad) {
+      ad.setServerSideOptions(
+        ServerSideVerificationOptions(customData: customData),
+      );
+      ad.fullScreenContentCallback = FullScreenContentCallback(
+        onAdDismissedFullScreenContent: (ad) => ad.dispose(),
+        onAdFailedToShowFullScreenContent: (ad, error) => ad.dispose(),
+      );
+      ad.show(onUserEarnedReward: (ad, reward) {});
+    }
+
+    final preloaded = _preloadedRewardedAd;
+    if (preloaded != null) {
+      _preloadedRewardedAd = null;
+      showLoaded(preloaded);
+      _preloadRewardedAd(); // 다음 클릭을 위해 바로 다시 미리 받아둔다.
+      return;
+    }
+    // 미리 받아둔 게 아직 없으면(첫 로드가 안 끝났거나 실패) 그때 로드해서 보여준다.
+    // 실패가 계속돼도 다음 클릭이 영구히 폴백으로 남지 않도록 성공 시 다시 미리 받아둔다.
     RewardedAd.load(
       adUnitId: _rewardedAdUnitId,
       request: const AdRequest(),
       rewardedAdLoadCallback: RewardedAdLoadCallback(
         onAdLoaded: (ad) {
-          ad.setServerSideOptions(
-            ServerSideVerificationOptions(customData: customData),
-          );
-          ad.fullScreenContentCallback = FullScreenContentCallback(
-            onAdDismissedFullScreenContent: (ad) => ad.dispose(),
-            onAdFailedToShowFullScreenContent: (ad, error) => ad.dispose(),
-          );
-          ad.show(onUserEarnedReward: (ad, reward) {});
+          showLoaded(ad);
+          _preloadRewardedAd();
         },
         onAdFailedToLoad: (error) {},
       ),
@@ -263,7 +294,12 @@ class _HomeShellState extends State<HomeShell> {
         }
       },
       child: Scaffold(
+        // top: false — 웹 페이지 자체가 env(safe-area-inset-top)으로 상태바 높이를
+        // 이미 반영한다(globals.css). SafeArea가 여기서 또 상태바만큼 밀어내면
+        // 이중으로 빈 공간이 생긴다(홈 화면 상단 큰 빈 공간 버그). 웹이 상태바
+        // 영역까지 그리게 두고, 그 안에서 CSS로 정확히 한 번만 여백을 준다.
         body: SafeArea(
+          top: false,
           child: Stack(
             children: [
               WebViewWidget(controller: _controller),
